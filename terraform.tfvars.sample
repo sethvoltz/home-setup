@@ -1,0 +1,64 @@
+# Debug: Optionally override the K3s installation script hosted on your own infra
+# k3s_get_url = "https://<my_domain>/get.k3s.io.sh"
+
+# Must have a passwordless SSH keypair available for use
+# Terraform uses this for remote-exec provisioner
+ssh_private_key_path = "~/.ssh/terraform_proxmox_ssh_key_nopassword"
+ssh_public_key_path  = "~/.ssh/terraform_proxmox_ssh_key_nopassword.pub"
+
+# Should match IMAGE_TEMPLATE_NAME set earlier
+# template_name = "<my_image_template>"
+
+# Randomly generate a long value
+# Example: uuidgen | tr -d '-'
+# k3s_token = "<my_token>"
+
+# Use these to control which VMIDs the new VMs get
+# control_start_vmid = 300
+# worker_start_vmid = 310
+
+# The full set of Proxmox nodes to deploy to
+# proxmox_nodes = [
+#   "set",
+#   "of",
+#   "nodes"
+# ]
+
+# Uncomment the following override to manually set your control plane node count.
+# Defaults to the largest odd number up to the number of Proxmox nodes available.
+# control_plane_node_count = 1
+
+# Set to the number of worker nodes that you want.
+# worker_node_count = 3
+
+# Control Plane Nodes
+# control_network = {
+#   dns = "<local_dns>"
+#   dhcp = false
+#   tag = <vlan_id>
+#   network = "<my_network>/24"
+#   first_host = 10
+# }
+
+# control_vm = {
+#   cores = 4
+#   disk_gb = 20
+#   memory = 4096
+#   storage = "ceph"
+# }
+
+# Worker Nodes
+# worker_network = {
+#   dns = "<local_dns>"
+#   dhcp = false
+#   tag = <vlan_id>
+#   network = "<my_network>/24"
+#   first_host = 20
+# }
+
+# worker_vm = {
+#   cores = 2
+#   disk_gb = 20
+#   memory = 2048
+#   storage = "ceph"
+# }
