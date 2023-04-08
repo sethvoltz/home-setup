@@ -14,17 +14,17 @@ pveum role add TerraformProv -privs "VM.Allocate VM.Clone VM.Config.CDROM VM.Con
 pveum user add terraform-prov@pve
 
 ### IMPORTANT: Copy/paste and save the token value (secret) presented after running the command below. You are only shown it once and need to set it later as PM_API_TOKEN_SECRET
-pveum user token add terraform-prov@pve mytoken
+pveum user token add terraform-prov@pve api
 
-pveum aclmod / -user terraform-prov@pve -tokens 'terraform-prov@pve!mytoken' -role TerraformProv
+pveum aclmod / -user terraform-prov@pve -tokens 'terraform-prov@pve!api' -role TerraformProv
 ```
 
 On your workstation:
 
 ```sh
 # Set the below appropriately for your Proxmox API token ID, secret, and API URL
-export PM_API_TOKEN_ID='terraform-prov@pve!mytoken'
-export PM_API_TOKEN_SECRET="afcd8f45-acc1-4d0f-bb12-a70b0777ec11"
+export PM_API_TOKEN_ID='terraform-prov@pve!api'
+export PM_API_TOKEN_SECRET="<token_secret>"
 export PM_API_URL="https://proxmox-server01.example.com:8006/api2/json"
 
 # Set to the default username for the image being used (e.g. ubuntu, cloud-user, etc.)
@@ -104,23 +104,7 @@ In `main.tf`, there are two resource blocks to consider:
 
 For both of the above, tweak resource and networking requirements as needed.
 
-Create `terraform.tfvars`:
-
-```ini
-# Must have a passwordless SSH keypair available for use
-# Terraform uses this for remote-exec provisioner
-# Path should match SSH_KEY_PATH set earlier
-ssh_private_key_path = "~/.ssh/terraform_proxmox_ssh_key_nopassword"
-ssh_public_key_path  = "~/.ssh/terraform_proxmox_ssh_key_nopassword.pub"
-
-proxmox_node = "name-of-proxmox-node-here"
-
-# Set to your network's DNS server (optional)
-proxmox_dns = "192.168.0.1"
-
-# Should match IMAGE_TEMPLATE_NAME set earlier
-template_name = "ubuntu-2004-cloudinit-template"
-```
+Copy `terraform.tfvars.sample` to `terraform.tfvars` and update the values according to the inline comments.
 
 Plan and apply. In tests, it took ~11m to create a 5 node cluster (3 control + 2 worker), but of course this varies based on hardware.
 
