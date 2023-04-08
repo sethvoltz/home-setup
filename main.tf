@@ -10,13 +10,18 @@ locals {
 }
 
 # https://registry.terraform.io/providers/Telmate/proxmox/latest/docs/resources/vm_qemu
+# control-plane nodes are known in k3s as a server; worker nodes are agent
+
 resource "proxmox_vm_qemu" "control-plane" {
-  # control-plane nodes are known in k3s as a server; worker nodes are agent
   count   = local.control_plane_node_count
   name    = format("kube-control-%02d", count.index)
   desc    = "Kube control-plane node"
-  tags    = "control-plane;k3s;kubernetes" # Alphabetize to keep from triggering changes
+  tags    = join(";", sort(["control-plane", "k3s", "kubernetes"]))
   target_node = var.proxmox_nodes[count.index % local.proxmox_node_count]
+
+  depends_on = [
+    proxmox_vm_qemu.control-plane[0]
+  ]
 
   clone = var.template_name
   vmid  = var.control_start_vmid == 0 ? 0 : var.control_start_vmid + count.index
@@ -89,7 +94,7 @@ resource "proxmox_vm_qemu" "worker" {
   count   = var.worker_node_count
   name    = format("kube-worker-%02d", count.index)
   desc    = "Kube worker node"
-  tags    = "k3s;kubernetes;worker" # Alphabetize to keep from triggering changes
+  tags    = join(";", sort(["worker", "k3s", "kubernetes"]))
   target_node = var.proxmox_nodes[(local.control_plane_node_count + count.index) % local.proxmox_node_count]
 
   depends_on = [
