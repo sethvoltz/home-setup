@@ -13,7 +13,7 @@ pveum role add TerraformProv -privs "VM.Allocate VM.Clone VM.Config.CDROM VM.Con
 
 pveum user add terraform-prov@pve
 
-### IMPORTANT: Copy/paste and save the token value (secret) presented after running the command below. You are only shown it once and need to set it later as PM_API_TOKEN_SECRET
+### IMPORTANT: Copy/paste and save the token value (secret) presented after running the command below. You are only shown it once and need to set it later as in terraform.tfvars
 pveum user token add terraform-prov@pve api
 
 pveum aclmod / -user terraform-prov@pve -tokens 'terraform-prov@pve!api' -role TerraformProv
@@ -22,19 +22,11 @@ pveum aclmod / -user terraform-prov@pve -tokens 'terraform-prov@pve!api' -role T
 On your workstation:
 
 ```sh
-# Set the below appropriately for your Proxmox API token ID, secret, and API URL
-export PM_API_TOKEN_ID='terraform-prov@pve!api'
-export PM_API_TOKEN_SECRET="<token_secret>"
-export PM_API_URL="https://proxmox-server01.example.com:8006/api2/json"
-
-# Set to the default username for the image being used (e.g. ubuntu, cloud-user, etc.)
-export SSH_USERNAME="ubuntu"
-
 # Set to path of SSH key to be used (must be passwordless)
 export SSH_KEY_PATH=~/.ssh/terraform_proxmox_ssh_key_nopassword
 
 # Generate a passwordless SSH keypair to be used
-ssh-keygen -f $SSH_KEY_PATH -t ed25519 -C "${PM_API_TOKEN_ID}" -N "" -q
+ssh-keygen -f $SSH_KEY_PATH -t ed25519 -C "terraform-prov@pve!api" -N "" -q
 ```
 
 ## Prepare a Machine Image
@@ -95,18 +87,9 @@ sudo qm template $PROXMOX_TEMPLATE_VM_ID
 
 ## Define and deploy machines in Terraform
 
-In `main.tf`, there are two resource blocks to consider:
+Copy `terraform.tfvars.sample` to `terraform.tfvars` and update the values according to the inline comments. The `proxmox_settings` block is where to put the API token and secret values generated earlier, along with the URL for the Proxmox API endpoint.
 
-- `resource "proxmox_vm_qemu" "control-plane"`
-  - Set `count` to an odd number: 1, 3, 5, etc.. For HA, a minimum of 3 control (server) nodes are required
-- `resource "proxmox_vm_qemu" "worker"`
-  - Set `count` to any number for the desired amount of worker (agent) nodes
-
-For both of the above, tweak resource and networking requirements as needed.
-
-Copy `terraform.tfvars.sample` to `terraform.tfvars` and update the values according to the inline comments.
-
-Plan and apply. In tests, it took ~11m to create a 5 node cluster (3 control + 2 worker), but of course this varies based on hardware.
+Plan and apply. In tests, it took ~11m to create a 6 node cluster (3 control + 3 worker) on a Proxmox cluster of 3 physical machines, but of course this varies based on hardware and inter-Proxmox networking.
 
 ```sh
 terraform plan
@@ -129,13 +112,13 @@ Or, copy the kube config from a server node so you can access the cluster from y
 
 ```sh
 export CONTROL0=$(terraform output -json control-plane | jq -r ' ."control-0"')
-scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL0:/etc/rancher/k3s/k3s.yaml ~/kubeconfig-$CONTROL0-k3s-terraform.yaml
+scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL0:/etc/rancher/k3s/k3s.yaml ~/kubeconfig-control-k3s-terraform.yaml
 ### Edit the downloaded config file and change the "server: https://127.0.0.1:6443" line to match the IP of one of the control machines
-sed -i.bak "s/127.0.0.1/${CONTROL0}/" ~/kubeconfig-$CONTROL0-k3s-terraform.yaml
+sed -i.bak "s/127.0.0.1/${CONTROL0}/" ~/kubeconfig-control-k3s-terraform.yaml
 # Use the config using KUBECONFIG OR pass the --kubeconfig flag
-export KUBECONFIG=~/kubeconfig-$CONTROL0-k3s-terraform.yaml
+export KUBECONFIG=~/kubeconfig-control-k3s-terraform.yaml
 kubectl get nodes -o wide
-kubectl --kubeconfig ~/kubeconfig-$CONTROL0-k3s-terraform.yaml get pods --all-namespaces
+kubectl get pods --all-namespaces
 
 # View all of the external IPs are the ones for each node in the cluster
 kubectl -n kube-system get service/traefik -o=jsonpath='{.status.loadBalancer.ingress}' | jq -r 'map(.ip)'
@@ -157,7 +140,7 @@ helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 
 kubectl create namespace cattle-system
 
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
 
 helm repo add jetstack https://charts.jetstack.io
 
@@ -166,17 +149,19 @@ helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager \
   --create-namespace \
-  --version v1.5.1
+  --version v1.7.1
+
+# Verify it's working by checking the pods
+kubectl get pods --namespace cert-manager
 
 helm install rancher rancher-latest/rancher \
   --namespace cattle-system \
   --set hostname=$CONTROL0.nip.io \
-  --set replicas=1 \
   --set bootstrapPassword=$PASSWORD_FOR_RANCHER_ADMIN
 
-# Wait awhile for the cluster to become available... (~5 mins depending on cluster)
-# Continue on when you see all pods are ready
-watch kubectl -n cattle-system get pods
+# Wait for Rancher to be rolled out
+kubectl -n cattle-system rollout status deploy/rancher
+
 echo "Open your browser to: https://${CONTROL0}.nip.io for the Rancher UI."
 
 # Take the opportunity to change admin's password or you will be locked out...
@@ -188,7 +173,7 @@ kubectl -n cattle-system exec $(kubectl -n cattle-system get pods -l app=rancher
 To delete the Rancher UI:
 
 ```sh
-kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.5.1/cert-manager.crds.yaml
+kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
 helm uninstall rancher --namespace cattle-system
 helm uninstall cert-manager --namespace cert-manager
 helm repo remove jetstack
@@ -225,10 +210,10 @@ kubectl delete serviceaccount dashboard-admin-sa
 
 ## Destroying the cluster
 
-In tests, it took ~4m to destroy a 5 node cluster (3 control + 2 worker), but of course this varies based on hardware.
+In tests, it took ~2m to destroy a 6 node cluster (3 control + 3 worker), but of course this varies based on hardware and network.
 
 ```sh
-$ terraform destroy
+terraform destroy
 ```
 
 ## Docs
