@@ -1,5 +1,16 @@
+# Access URL and credentials for Proxmox, required by proxmox_qemu_vm
+proxmox_settings = {
+  api_url = "https://<proxmox_server>:8006/api2/json",
+  token_id = "terraform-prov@pve!api",
+  token_secret = "<access_token_secret>"
+}
+
 # Debug: Optionally override the K3s installation script hosted on your own infra
 # k3s_get_url = "https://<my_domain>/get.k3s.io.sh"
+
+# Optional cersion override for K3s to use over latest
+# Versions are available on the releases page for k3s https://github.com/k3s-io/k3s/releases
+# k3s_version_override = "v<release>"
 
 # Must have a passwordless SSH keypair available for use
 # Terraform uses this for remote-exec provisioner

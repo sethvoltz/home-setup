@@ -17,4 +17,8 @@ provider "proxmox" {
 
   # Timeout value (seconds) for Proxmox API calls (default: 300)
   pm_timeout = 600
+
+  pm_api_url = var.proxmox_settings.api_url
+  pm_api_token_id = var.proxmox_settings.token_id
+  pm_api_token_secret = var.proxmox_settings.token_secret
 }

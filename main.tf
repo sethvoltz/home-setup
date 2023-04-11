@@ -76,6 +76,7 @@ resource "proxmox_vm_qemu" "control-plane" {
         k3s_get_url = var.k3s_get_url,
         k3s_token = var.k3s_token,
         k3s_cluster_join_ip = proxmox_vm_qemu.control-plane[0].default_ipv4_address
+        k3s_version_override = var.k3s_version_override
       }
     )
   }
@@ -155,6 +156,7 @@ resource "proxmox_vm_qemu" "worker" {
         k3s_get_url = var.k3s_get_url,
         k3s_token = var.k3s_token,
         k3s_cluster_join_ip = proxmox_vm_qemu.control-plane[0].default_ipv4_address
+        k3s_version_override = var.k3s_version_override
       }
     )
   }

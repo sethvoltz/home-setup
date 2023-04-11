@@ -6,11 +6,11 @@ then
     if [[ $HOSTNAME -eq 'kube-control-00' ]]
     then
         echo "==> Initializing k3s cluster installation..." && \
-        curl -sfL ${k3s_get_url} | K3S_TOKEN=${k3s_token} sh -s - --write-kubeconfig-mode=644 --cluster-init
+        curl -sfL ${k3s_get_url} | INSTALL_K3S_VERSION=${k3s_version_override} K3S_TOKEN=${k3s_token} sh -s - --write-kubeconfig-mode=644 --cluster-init
     else
         # TODO: Write a loop to check that control-0 is available before proceeding
         echo "==> Installing k3s server and joining to cluster..." && \
-        curl -sfL ${k3s_get_url} | K3S_TOKEN=${k3s_token} sh -s - --write-kubeconfig-mode=644 --server=https://${k3s_cluster_join_ip}:6443
+        curl -sfL ${k3s_get_url} | INSTALL_K3S_VERSION=${k3s_version_override} K3S_TOKEN=${k3s_token} sh -s - --write-kubeconfig-mode=644 --server=https://${k3s_cluster_join_ip}:6443
     fi
 
     echo "==> Control install complete. Getting nodes."
@@ -19,6 +19,6 @@ then
 else
     # Agent (Worker)
     echo "==> Installing k3s agent and joining to cluster..." && \
-    curl -sfL ${k3s_get_url} | K3S_TOKEN=${k3s_token} K3S_URL=https://${k3s_cluster_join_ip}:6443 sh -
+    curl -sfL ${k3s_get_url} | INSTALL_K3S_VERSION=${k3s_version_override} K3S_TOKEN=${k3s_token} K3S_URL=https://${k3s_cluster_join_ip}:6443 sh -
     echo "==> Worker install complete."
 fi

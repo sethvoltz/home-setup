@@ -2,10 +2,32 @@
 # Proxmox and Kubernetes
 ###
 
+variable "proxmox_settings" {
+  type = object({
+    api_url = string,
+    token_id = string,
+    token_secret = string
+  })
+  description = <<EOT
+    proxmox_settings = {
+      api_url : "URL of the JSON API endpoint for the proxmox server"
+      token_id : "The API token that has permissions to perform provisioning"
+      token_secret : "The secret value for the token_id"
+    }
+  EOT
+  default = null
+}
+
 variable "k3s_get_url" {
   type = string
   description = "Optionally override the URL for the K3s download script. Used for debugging."
   default = "https://get.k3s.io"
+}
+
+variable "k3s_version_override" {
+  type = string
+  description = "Optional version override to use instead of latest."
+  default = ""
 }
 
 variable "proxmox_nodes" {
@@ -149,7 +171,7 @@ variable "control_vm" {
       cores : "The number of processor cores to give the VM"
       disk_gb : "The size of the VM disk in GB"
       memory : "The amount of RAM to give the VM in MB"
-      storage : "Where to store the VM drive
+      storage : "Where to store the VM drive"
     }
   EOT
   default = {
@@ -172,7 +194,7 @@ variable "worker_vm" {
       cores : "The number of processor cores to give the VM"
       disk_gb : "The size of the VM disk in GB"
       memory : "The amount of RAM to give the VM in MB"
-      storage : "Where to store the VM drive
+      storage : "Where to store the VM drive"
     }
   EOT
   default = {
