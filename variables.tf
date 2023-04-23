@@ -18,18 +18,6 @@ variable "proxmox_settings" {
   default = null
 }
 
-variable "k3s_get_url" {
-  type = string
-  description = "Optionally override the URL for the K3s download script. Used for debugging."
-  default = "https://get.k3s.io"
-}
-
-variable "k3s_version_override" {
-  type = string
-  description = "Optional version override to use instead of latest."
-  default = ""
-}
-
 variable "proxmox_nodes" {
   type = list(string)
   description = "The set of Proxmox nodes to use for deploying the K3s cluster."
@@ -40,6 +28,8 @@ variable "proxmox_nodes" {
     error_message = "At least one Proxmox node name must be declared."
   }
 }
+
+# Control Plane
 
 variable "control_plane_node_count" {
   type = number
@@ -52,26 +42,18 @@ variable "control_plane_node_count" {
   }
 }
 
-variable "worker_node_count" {
-  type = number
-  description = "The total number of worker nodes to provision."
-  default = 1
-}
-
-variable "k3s_token" {
-  type = string
-  default = "exampletoken"
-
-  validation {
-    condition = length(var.k3s_token) > 20
-    error_message = "K3s token must be a long secure value. Please use a longer token."
-  }
-}
-
 variable "control_start_vmid" {
   type = number
   description = "The ID to use as the first provisioned VM. Zero means use the next available ID."
   default = 0
+}
+
+# Workers
+
+variable "worker_node_count" {
+  type = number
+  description = "The total number of worker nodes to provision."
+  default = 1
 }
 
 variable "worker_start_vmid" {
@@ -85,7 +67,13 @@ variable "worker_start_vmid" {
 # Individual Node Settings
 ###
 
-# Network
+# Node Network
+
+variable "control_plane_vip" {
+  type = string
+  description = "The IP of the K3s control-plane VIP"
+  default = null
+}
 
 variable "control_network" {
   type = object({
@@ -157,7 +145,7 @@ variable "worker_network" {
   }
 }
 
-# VM
+# Node VMs
 
 variable "control_vm" {
   type = object({
@@ -230,4 +218,32 @@ variable "ssh_user" {
   type = string
   description = "The username configured in the template."
   default = "ubuntu"
+}
+
+variable "system_timezone" {
+  type = string
+  description = "The Linux timezone value to set the servers"
+  default = "Etc/UTC"
+}
+
+variable "k3s_version" {
+  type = string
+  description = "Optional version specification to use."
+  default = "v1.25.8+k3s1"
+}
+
+variable "k3s_token" {
+  type = string
+  default = "exampletoken"
+
+  validation {
+    condition = length(var.k3s_token) > 20
+    error_message = "K3s token must be a long secure value. Please use a longer token."
+  }
+}
+
+variable "metal_lb_ip_range" {
+  type = string
+  description = "The IP range to give to MetalLB for exposing services"
+  default = "192.168.1.100-192.168.1.110"
 }

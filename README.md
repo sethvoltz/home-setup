@@ -98,31 +98,22 @@ terraform apply -auto-approve
 
 ## Using the k3s cluster
 
-Then connect to any of the control machines:
+Copy the kube config from a server node so you can access the cluster from your local machine:
 
 ```sh
-export CONTROL0=$(terraform output -json control-plane | jq -r '."control-0"')
-ssh -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL0
+export CONTROL_VIP=$(terraform output -raw control-plane-vip)
+export SSH_KEY_PATH=$(terraform output -raw ssh-private-key-path)
+export SSH_USERNAME=$(terraform output -raw ssh-user)
+scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL_VIP:/etc/rancher/k3s/k3s.yaml ~/.kube/config
 
-# On control-0
-k3s kubectl get nodes
-```
-
-Or, copy the kube config from a server node so you can access the cluster from your local machine (externally):
-
-```sh
-export CONTROL0=$(terraform output -json control-plane | jq -r ' ."control-0"')
-scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL0:/etc/rancher/k3s/k3s.yaml ~/kubeconfig-control-k3s-terraform.yaml
-### Edit the downloaded config file and change the "server: https://127.0.0.1:6443" line to match the IP of one of the control machines
-sed -i.bak "s/127.0.0.1/${CONTROL0}/" ~/kubeconfig-control-k3s-terraform.yaml
-# Use the config using KUBECONFIG OR pass the --kubeconfig flag
-export KUBECONFIG=~/kubeconfig-control-k3s-terraform.yaml
+# Update the downloaded config file to point to the IP of the control plane VIP
+sed -i.bak "s/127.0.0.1/${CONTROL_VIP}/" ~/.kube/config
 kubectl get nodes -o wide
 kubectl get pods --all-namespaces
-
-# View all of the external IPs are the ones for each node in the cluster
-kubectl -n kube-system get service/traefik -o=jsonpath='{.status.loadBalancer.ingress}' | jq -r 'map(.ip)'
 ```
+
+### TBD Get Traefik running again
+
 
 ### (optional) Install a Dashboard!
 

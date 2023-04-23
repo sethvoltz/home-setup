@@ -61,33 +61,6 @@ resource "proxmox_vm_qemu" "control-plane" {
   nameserver = "${var.control_network.dns}"
 
   sshkeys = file("${var.ssh_public_key_path}")
-
-  connection {
-    type        = "ssh"
-    user        = var.ssh_user
-    private_key = file("${var.ssh_private_key_path}")
-    host        = self.default_ipv4_address
-  }
-
-  provisioner "file" {
-    destination = "/tmp/bootstrap_k3s.sh"
-    content = templatefile("bootstrap_k3s.sh.tpl",
-      {
-        k3s_get_url = var.k3s_get_url,
-        k3s_token = var.k3s_token,
-        k3s_cluster_join_ip = proxmox_vm_qemu.control-plane[0].default_ipv4_address
-        k3s_version_override = var.k3s_version_override
-      }
-    )
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "set -e",
-      "chmod +x /tmp/bootstrap_k3s.sh",
-      "sudo /tmp/bootstrap_k3s.sh"
-    ]
-  }
 }
 
 resource "proxmox_vm_qemu" "worker" {
@@ -141,31 +114,29 @@ resource "proxmox_vm_qemu" "worker" {
   nameserver = "${var.worker_network.dns}"
 
   sshkeys    = file("${var.ssh_public_key_path}")
+}
 
-  connection {
-    type        = "ssh"
-    user        = var.ssh_user
-    private_key = file("${var.ssh_private_key_path}")
-    host        = self.default_ipv4_address
-  }
+resource "local_file" "k8s_file" {
+  content = templatefile("${path.module}/templates/hosts.ini.tpl",
+    {
+      control_plane = proxmox_vm_qemu.control-plane
+      worker = proxmox_vm_qemu.worker
+      ssh_private_key_path = var.ssh_private_key_path
+    }
+  )
+  filename = "${path.module}/inventory/my-cluster/hosts.ini"
+}
 
-  provisioner "file" {
-    destination = "/tmp/bootstrap_k3s.sh"
-    content = templatefile("bootstrap_k3s.sh.tpl",
-      {
-        k3s_get_url = var.k3s_get_url,
-        k3s_token = var.k3s_token,
-        k3s_cluster_join_ip = proxmox_vm_qemu.control-plane[0].default_ipv4_address
-        k3s_version_override = var.k3s_version_override
-      }
-    )
-  }
-
-  provisioner "remote-exec" {
-    inline = [
-      "set -e",
-      "chmod +x /tmp/bootstrap_k3s.sh",
-      "sudo /tmp/bootstrap_k3s.sh"
-    ]
-  }
+resource "local_file" "var_file" {
+  content  = templatefile("${path.module}/templates/group_vars-all.yml.tpl",
+    {
+      ssh_user = var.ssh_user
+      k3s_version = var.k3s_version
+      k3s_token = var.k3s_token
+      system_timezone = var.system_timezone
+      apiserver_endpoint = var.control_plane_vip
+      metal_lb_ip_range = var.metal_lb_ip_range
+    }
+  )
+  filename = "${path.module}/inventory/my-cluster/group_vars/all.yml"
 }
