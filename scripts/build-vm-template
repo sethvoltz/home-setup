@@ -1,0 +1,52 @@
+#!/bin/bash -e
+
+DISTRO="ubuntu" # change for correct distro, e.g. debian
+RELEASE="kinetic" # change to current release, e.g. bullseye
+RELEASE_VERSION=22.10 # 11 for debian
+VM_ID=8000
+SSH_KEY="" # put ssh key here
+STORAGE_NAME="ceph" # change for preferred PVE storage, e.g. local-lvm
+
+IMAGE_NAME=${DISTRO}-${RELEASE}-${RELEASE_VERSION}
+ISO_PATH="/mnt/pve/cephfs/template/iso/" # e.g. /var/lib/vz/template/iso/
+
+# Ubuntu
+wget -O ${ISO_PATH}${IMAGE_NAME}.img https://cloud-images.ubuntu.com/releases/${RELEASE_VERSION}/release/${DISTRO}-${RELEASE_VERSION}-server-cloudimg-amd64.img
+
+# Debian
+#wget -O ${ISO_PATH}${IMAGE_NAME}.qcow https://cloud.debian.org/images/cloud/${RELEASE}/latest/debian-${RELEASE_VERSION}-genericcloud-amd64.qcow2
+
+virt-sysprep \
+  -a ${ISO_PATH}${IMAGE_NAME}.img \
+  --network \
+  --update \
+  --install qemu-guest-agent,jq,git,curl,vim,wget,unzip \
+  --truncate /etc/machine-id
+
+qm create ${VM_ID} --name cloud-${IMAGE_NAME} \
+  --memory 2048 --cores 2 \
+  --net0 virtio,bridge=vmbr0
+
+qm importdisk ${VM_ID} ${ISO_PATH}${IMAGE_NAME}.img $STORAGE_NAME # Ubuntu
+#qm importdisk ${VM_ID} ${IMAGE_NAME}.qcow $STORAGE_NAME # Debian
+
+ssh_tmpfile=$(mktemp /tmp/sshkey.XXX.pub)
+echo $SSH_KEY > $ssh_tmpfile
+
+qm set ${VM_ID} --description "Cloud-Image ${IMAGE_NAME}" \
+  --scsihw virtio-scsi-pci --scsi0 ${STORAGE_NAME}:vm-${VM_ID}-disk-0 \
+  --ide2 ${STORAGE_NAME}:cloudinit \
+  --boot c --bootdisk scsi0 \
+  --serial0 socket --vga serial0 \
+  --ipconfig0 ip=dhcp --onboot 1 --ostype l26 --agent enabled=1 \
+  --sshkeys $ssh_tmpfile
+#   --cicustom "user=snippets:snippets/user-data.yml" \
+#   --ciuser ${STD_USER_NAME} --cipassword ${STD_USER_PASS}
+
+qm resize ${VM_ID} scsi0 "20G"
+
+rm -v $ssh_tmpfile
+
+# No going back after this
+# On NFS storage this will fail to `chattr` the FS, when making it immutable
+qm template ${VM_ID}

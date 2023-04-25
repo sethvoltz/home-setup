@@ -4,6 +4,3 @@
 terraform.tfstate*
 .terraform.tfstate*
 terraform.tfvars
-
-# Ansible
-inventory/my-cluster

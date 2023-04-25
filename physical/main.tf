@@ -124,7 +124,7 @@ resource "local_file" "k8s_file" {
       ssh_private_key_path = var.ssh_private_key_path
     }
   )
-  filename = "${path.module}/inventory/my-cluster/hosts.ini"
+  filename = "${path.module}/../cluster/inventory/my-cluster/hosts.ini"
 }
 
 resource "local_file" "var_file" {
@@ -138,5 +138,5 @@ resource "local_file" "var_file" {
       metal_lb_ip_range = var.metal_lb_ip_range
     }
   )
-  filename = "${path.module}/inventory/my-cluster/group_vars/all.yml"
+  filename = "${path.module}/../cluster/inventory/my-cluster/group_vars/all.yml"
 }

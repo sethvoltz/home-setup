@@ -1,0 +1,48 @@
+#!/bin/bash -e
+
+COMMAND=$1
+
+basepath=$(realpath $(dirname $0)/..)
+
+function do_deploy() {
+  echo "Deploying or updating physical VM nodes"
+  terraform -chdir=${basepath}/physical apply
+}
+
+function do_reset() {
+  echo "PERFORMING CLUSTER VM NODES!!!"
+  terraform -chdir=${basepath}/physical destroy
+}
+
+function yes_or_no {
+  while true; do
+    read -p "$* [y/n]: " yn
+    case $yn in
+      [Yy]*) return 0  ;;  
+      [Nn]*) echo "Aborted" ; return  1 ;;
+    esac
+  done
+}
+
+# ------------------------------------------------------------------------------------------------ #
+
+case "${COMMAND}" in
+  deploy)
+    do_deploy
+    ;;
+  reset)
+    yes_or_no "Are you sure you want to fully wipe the cluster?" && do_reset
+    ;;
+  *)
+    cat << HELPDOC
+Use Terraform to deploy and setup the underlying VMs to be used for a k3s cluster. This will also
+write the Ansible sites file for use in later steps.
+
+Usage: physical <command>
+
+Commands:
+  deploy    Perform deploy or update of k3s services
+  reset     Completely reset and remove k3s services - THIS CAN'T BE UNDONE
+HELPDOC
+    ;;
+esac

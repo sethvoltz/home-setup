@@ -5,18 +5,13 @@ COMMAND=$1
 basepath=$(realpath $(dirname $0)/..)
 
 function do_deploy() {
-  echo "Deploying or updating K3s cluster"
-  ansible-playbook -i "${basepath}/inventory/my-cluster/hosts.ini" "${basepath}/site.yml"
-}
-
-function do_reboot() {
-  echo "Mass rebooting VMs backing cluster"
-  ansible-playbook -i "${basepath}/inventory/my-cluster/hosts.ini" "${basepath}/reboot.yml"
+  echo "Deploying or updating physical VM nodes"
+  terraform -chdir=${basepath}/services apply
 }
 
 function do_reset() {
-  echo "PERFORMING CLUSTER RESET!!!"
-  ansible-playbook -i "${basepath}/inventory/my-cluster/hosts.ini" "${basepath}/reset.yml"
+  echo "PERFORMING CLUSTER VM NODES!!!"
+  terraform -chdir=${basepath}/services destroy
 }
 
 function yes_or_no {
@@ -35,13 +30,18 @@ case "${COMMAND}" in
   deploy)
     do_deploy
     ;;
-  reboot)
-    yes_or_no "Are you sure you want to reboot ALL cluster machines?" && do_reboot
-    ;;
   reset)
     yes_or_no "Are you sure you want to fully wipe the cluster?" && do_reset
     ;;
   *)
-    echo "Unknown command"
+    cat << HELPDOC
+Use Terraform to deploy managed services to existing k3s cluster as build by the cluster tool.
+
+Usage: services <command>
+
+Commands:
+  deploy    Perform deploy or update of k3s services
+  reset     Completely reset and remove k3s services - THIS CAN'T BE UNDONE
+HELPDOC
     ;;
 esac
