@@ -63,6 +63,7 @@ Copy the kubectl config from a server node so you can access the cluster from yo
 
 ```sh
 ./scripts/get-kubeconfig
+kubectl config use-context config-k3s
 kubectl get nodes -o wide
 kubectl get pods --all-namespaces
 ```
