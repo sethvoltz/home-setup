@@ -34,7 +34,7 @@ extra_server_args: >-
   {{ extra_args }}
   {{ '--node-taint node-role.kubernetes.io/master=true:NoSchedule' if k3s_master_taint else '' }}
   --tls-san {{ apiserver_endpoint }}
-  --write-kubeconfig-mode=640
+  --write-kubeconfig-mode=644
   --disable servicelb
   --disable traefik
 extra_agent_args: >-

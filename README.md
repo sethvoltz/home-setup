@@ -102,28 +102,21 @@ terraform apply -auto-approve
 The Terraform provisioners are particularly flaky on the Proxmox engine. There is an Ansible playbook for spinning up K3s, MetalLB and Kube-VIP to give a single virtual IP for the HA control-plane.
 
 ```sh
-./scripts/deploy.sh
+./scripts/ansible deploy
 ```
 
-Additional playbooks for resetting the cluster and rebooting are available as well.
-
-```sh
-# Reboot all the machines, generally don't do this
-./script/reboot.sh
-
-# Reset and wipe the cluster. This will also reboot the machines
-ansible-playbook -i "./inventory/my-cluster/hosts.ini" ./site.yml"
-```
+Additional commands in the `ansible` command, via playbooks, are `reset` and `reboot`.
 
 ## Using the k3s cluster
 
-Copy the kube config from a server node so you can access the cluster from your local machine:
+Copy the kubectl config from a server node so you can access the cluster from your local machine:
 
 ```sh
+export CONTROL0=$(terraform output -json control-plane | jq -r ' ."kube-control-00"')
 export CONTROL_VIP=$(terraform output -raw control-plane-vip)
 export SSH_KEY_PATH=$(terraform output -raw ssh-private-key-path)
 export SSH_USERNAME=$(terraform output -raw ssh-user)
-scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL_VIP:/etc/rancher/k3s/k3s.yaml ~/.kube/config
+scp -i $SSH_KEY_PATH $SSH_USERNAME@$CONTROL0:/etc/rancher/k3s/k3s.yaml ~/.kube/config
 
 # Update the downloaded config file to point to the IP of the control plane VIP
 sed -i.bak "s/127.0.0.1/${CONTROL_VIP}/" ~/.kube/config
@@ -131,8 +124,86 @@ kubectl get nodes -o wide
 kubectl get pods --all-namespaces
 ```
 
-### TBD Get Traefik running again
+### Cert-Manager
 
+```sh
+# First apply the CRDs
+kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.1/cert-manager.crds.yaml
+
+helm repo add jetstack https://charts.jetstack.io
+
+helm repo update
+
+# Then install
+kubectl create namespace cert-manager
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --values=./kubernetes/cert-manager/values.yaml \
+  --version v1.11.1
+
+# Verify it's working by checking the pods
+kubectl get pods --namespace cert-manager
+
+# Copy and edit the Secret and ClusterIssuer files with your credentials
+cp kubernetes/cert-manager/issuers/secret-{{TYPE}}-token.yaml{.example,}
+cp kubernetes/cert-manager/issuers/letsencrypt-production.yaml{.example,}
+
+# Apply them
+kubectl apply -f kubernetes/cert-manager/issuers/secret-{{TYPE}}-token.yaml
+kubectl apply -f kubernetes/cert-manager/issuers/letsencrypt-production.yaml
+
+# Create a wildcard Certificate file, fill out with your needs
+cp kubernetes/cert-manager/certificates/production/{local-example-com,your-domain-here}.yaml
+
+# Apply
+kubectl apply -f kubernetes/cert-manager/certificates/production/your-domain-here.yaml
+
+# Get active challenges
+kubectl get challenges
+
+# Once challenges are done, you can check the certs
+kubectl describe cert your-domain-here --namespace default
+```
+
+### Install Traefik
+
+```sh
+helm repo add traefik https://helm.traefik.io/traefik
+
+helm repo update
+
+kubectl create namespace traefik
+
+# Copy and edit the domain info for Traefik, then request it
+cp kubernetes/cert-manager/certificates/production/traefik-{local-example-com,your-domain-here}.yaml
+kubectl apply -f kubernetes/cert-manager/certificates/production/traefik-{{your-domain-here}}.yaml
+
+# Then install
+helm install traefik traefik/traefik \
+  --namespace=traefik \
+  --values=./kubernetes/traefik/values.yaml
+
+# Verify install
+kubectl get svc --all-namespaces -o wide
+kubectl get pods --namespace traefik
+
+# Apply middleware
+kubectl apply -f ./kubernetes/traefik/default-headers.yaml
+
+# Get htpassword value for BASIC auth
+htpasswd -nb {{username}} {{password}} | openssl base64
+
+# Copy and edit the secret and ingress
+cp kubernetes/traefik/dashboard/secret-dashboard.yaml{.example,}
+cp kubernetes/traefik/dashboard/ingress.yaml{.example,}
+
+# Apply
+kubectl apply -f ./kubernetes/traefik/dashboard/secret-dashboard.yaml
+kubectl apply -f ./kubernetes/traefik/dashboard/middleware.yaml
+kubectl apply -f ./kubernetes/traefik/dashboard/ingress.yaml
+
+# Check it out: https://traefik.{{your-domain-here}}
+```
 
 ### Install Rancher
 
@@ -140,35 +211,20 @@ A popular choice on K3s is to deploy the Rancher UI. See: [Quick Start Guide](ht
 
 ```sh
 # Set a bootstrap admin password
-export PASSWORD_FOR_RANCHER_ADMIN="p4nc4K3s"
-
 helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
 
 kubectl create namespace cattle-system
 
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
+# Copy and edit the domain
+cp kubernetes/rancher/values.yaml{.example,}
 
-helm repo add jetstack https://charts.jetstack.io
-
-helm repo update
-
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.7.1
-
-# Verify it's working by checking the pods
-kubectl get pods --namespace cert-manager
-
+# Install it
 helm install rancher rancher-latest/rancher \
   --namespace cattle-system \
-  --set hostname=$CONTROL0.nip.io \
-  --set bootstrapPassword=$PASSWORD_FOR_RANCHER_ADMIN
+  --values=./kubernetes/rancher/values.yaml
 
 # Wait for Rancher to be rolled out
 kubectl -n cattle-system rollout status deploy/rancher
-
-echo "Open your browser to: https://${CONTROL0}.nip.io for the Rancher UI."
 
 # Take the opportunity to change admin's password or you will be locked out...
 # If you end up locked out, you can reset the password using:
@@ -178,13 +234,10 @@ kubectl -n cattle-system exec $(kubectl -n cattle-system get pods -l app=rancher
 
 To delete the Rancher UI:
 
+First, download the latest release of Rancher `system-tools`, e.g. `system-tools_darwin-amd64`
+
 ```sh
-kubectl delete -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.crds.yaml
-helm uninstall rancher --namespace cattle-system
-helm uninstall cert-manager --namespace cert-manager
-helm repo remove jetstack
-helm repo remove rancher-latest
-kubectl delete namespace cattle-system
+./system-tools_darwin-amd64 remove --kubeconfig ~/.kube/config --namespace cattle-system
 ```
 
 
