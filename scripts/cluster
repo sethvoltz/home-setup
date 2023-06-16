@@ -2,7 +2,7 @@
 
 COMMAND=$1
 
-basepath=$(realpath $(dirname $0)/..)
+basepath=$(realpath $(dirname $0)/../cluster)
 
 function do_deploy() {
   echo "Deploying or updating K3s cluster"

@@ -1,9 +1,0 @@
-issuers/secret-r53-token.yaml
-issuers/secret-cf-token.yaml
-issuers/letsencrypt-production.yaml
-issuers/letsencrypt-staging.yaml
-
-certificates/production/*
-!certificates/production/*.example
-certificates/staging/*
-!certificates/staging/*.example

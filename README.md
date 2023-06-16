@@ -68,122 +68,49 @@ kubectl get nodes -o wide
 kubectl get pods --all-namespaces
 ```
 
-### Cert-Manager
+## Provision the kubernetes services
+
+In order for Terraform to properly request an access key for cert-manager, we also need a properly permissioned user called `k8s` for it to hang off of.
+
+- Go to AWS > IAM > Policies
+- Create a new Polocy called `lets-encrypt-access-policy` with the following permissions
+  ```
+  {
+      "Version": "2012-10-17",
+      "Statement": [
+          {
+              "Sid": "VisualEditor0",
+              "Effect": "Allow",
+              "Action": [
+                  "route53:GetChange",
+                  "route53:ChangeResourceRecordSets",
+                  "route53:ListResourceRecordSets"
+              ],
+              "Resource": [
+                  "arn:aws:route53:::hostedzone/*",
+                  "arn:aws:route53:::change/*"
+              ]
+          },
+          {
+              "Sid": "VisualEditor1",
+              "Effect": "Allow",
+              "Action": [
+                  "route53:ListHostedZones",
+                  "route53:ListHostedZonesByName"
+              ],
+              "Resource": "*"
+          }
+      ]
+  }
+  ```
+- Go to AWS > IAM > Users
+- Create a new user called `k8s` and assign it the policy created above
+
+Once the AWS user is available, the remainder of the provisioning is a single command:
 
 ```sh
-# First apply the CRDs
-kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.11.1/cert-manager.crds.yaml
-
-helm repo add jetstack https://charts.jetstack.io
-
-helm repo update
-
-# Then install
-kubectl create namespace cert-manager
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --values=./kubernetes/cert-manager/values.yaml \
-  --version v1.11.1
-
-# Verify it's working by checking the pods
-kubectl get pods --namespace cert-manager
-
-# Copy and edit the Secret and ClusterIssuer files with your credentials
-cp kubernetes/cert-manager/issuers/secret-{{TYPE}}-token.yaml{.example,}
-cp kubernetes/cert-manager/issuers/letsencrypt-production.yaml{.example,}
-
-# Apply them
-kubectl apply -f kubernetes/cert-manager/issuers/secret-{{TYPE}}-token.yaml
-kubectl apply -f kubernetes/cert-manager/issuers/letsencrypt-production.yaml
-
-# Create a wildcard Certificate file, fill out with your needs
-cp kubernetes/cert-manager/certificates/production/{local-example-com,your-domain-here}.yaml
-
-# Apply
-kubectl apply -f kubernetes/cert-manager/certificates/production/your-domain-here.yaml
-
-# Get active challenges
-kubectl get challenges
-
-# Once challenges are done, you can check the certs
-kubectl describe cert your-domain-here --namespace default
+./scripts/services deploy
 ```
-
-### Install Traefik
-
-```sh
-helm repo add traefik https://helm.traefik.io/traefik
-
-helm repo update
-
-kubectl create namespace traefik
-
-# Copy and edit the domain info for Traefik, then request it
-cp kubernetes/cert-manager/certificates/production/traefik-{local-example-com,your-domain-here}.yaml
-kubectl apply -f kubernetes/cert-manager/certificates/production/traefik-{{your-domain-here}}.yaml
-
-# Then install
-helm install traefik traefik/traefik \
-  --namespace=traefik \
-  --values=./kubernetes/traefik/values.yaml
-
-# Verify install
-kubectl get svc --all-namespaces -o wide
-kubectl get pods --namespace traefik
-
-# Apply middleware
-kubectl apply -f ./kubernetes/traefik/default-headers.yaml
-
-# Get htpassword value for BASIC auth
-htpasswd -nb {{username}} {{password}} | openssl base64
-
-# Copy and edit the secret and ingress
-cp kubernetes/traefik/dashboard/secret-dashboard.yaml{.example,}
-cp kubernetes/traefik/dashboard/ingress.yaml{.example,}
-
-# Apply
-kubectl apply -f ./kubernetes/traefik/dashboard/secret-dashboard.yaml
-kubectl apply -f ./kubernetes/traefik/dashboard/middleware.yaml
-kubectl apply -f ./kubernetes/traefik/dashboard/ingress.yaml
-
-# Check it out: https://traefik.{{your-domain-here}}
-```
-
-### Install Rancher
-
-A popular choice on K3s is to deploy the Rancher UI. See: [Quick Start Guide](https://rancher.com/docs/rancher/v2.6/en/quick-start-guide/deployment/quickstart-manual-setup/) for more info.
-
-```sh
-# Set a bootstrap admin password
-helm repo add rancher-latest https://releases.rancher.com/server-charts/latest
-
-kubectl create namespace cattle-system
-
-# Copy and edit the domain
-cp kubernetes/rancher/values.yaml{.example,}
-
-# Install it
-helm install rancher rancher-latest/rancher \
-  --namespace cattle-system \
-  --values=./kubernetes/rancher/values.yaml
-
-# Wait for Rancher to be rolled out
-kubectl -n cattle-system rollout status deploy/rancher
-
-# Take the opportunity to change admin's password or you will be locked out...
-# If you end up locked out, you can reset the password using:
-kubectl -n cattle-system exec $(kubectl -n cattle-system get pods -l app=rancher | grep '1/1' | head -1 | awk '{ print $1 }') -- reset-password
-# Then login using admin/<new-password> and change it in the UI properly.
-```
-
-To delete the Rancher UI:
-
-First, download the latest release of Rancher `system-tools`, e.g. `system-tools_darwin-amd64`
-
-```sh
-./system-tools_darwin-amd64 remove --kubeconfig ~/.kube/config --namespace cattle-system
-```
-
 
 ## Destroying the cluster
 
