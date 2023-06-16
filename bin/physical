@@ -10,7 +10,7 @@ function do_deploy() {
 }
 
 function do_reset() {
-  echo "PERFORMING CLUSTER VM NODES!!!"
+  echo "DESTROYING CLUSTER VM NODES!!!"
   terraform -chdir=${basepath}/physical destroy
 }
 

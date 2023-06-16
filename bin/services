@@ -5,12 +5,12 @@ COMMAND=$1
 basepath=$(realpath $(dirname $0)/..)
 
 function do_deploy() {
-  echo "Deploying or updating physical VM nodes"
+  echo "Deploying or updating cluster services"
   terraform -chdir=${basepath}/services apply
 }
 
 function do_reset() {
-  echo "PERFORMING CLUSTER VM NODES!!!"
+  echo "DESTROYING CLUSTER SERVICES!!!"
   terraform -chdir=${basepath}/services destroy
 }
 
