@@ -165,7 +165,7 @@ variable "control_vm" {
   default = {
     cores = 4,
     disk_gb = 20,
-    memory = 2048,
+    memory = 4096,
     storage = "local-lvm"
   }
 }
@@ -188,7 +188,7 @@ variable "worker_vm" {
   default = {
     cores = 2,
     disk_gb = 40,
-    memory = 2048,
+    memory = 8192,
     storage = "local-lvm"
   }
 }
