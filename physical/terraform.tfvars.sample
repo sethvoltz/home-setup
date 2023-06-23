@@ -76,7 +76,7 @@ metal_lb_ip_range = "<ip_start>-<ip_end>"
 
 # worker_vm = {
 #   cores = 2
-#   disk_gb = 20
+#   disk_gb = 40
 #   memory = 8192
 #   storage = "ceph"
 # }
