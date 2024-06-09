@@ -34,7 +34,7 @@ ssh-keygen -f $SSH_KEY_PATH -t ed25519 -C "terraform-prov@pve!api" -N "" -q
 In order to deploy VMs or CTs, you need to prepare an image, and have it available as a template on your Proxmox cluster. On your Proxmox host:
 
 ```sh
-./scripts/build-vm-template
+./bin/build-vm-template
 ```
 
 ## Define and deploy machines in Terraform
@@ -44,7 +44,7 @@ Copy `physical/terraform.tfvars.sample` to `physical/terraform.tfvars` and updat
 Plan and apply. In tests, it took ~11m to create a 6 node cluster (3 control + 3 worker) on a Proxmox cluster of 3 physical machines, but of course this varies based on hardware and inter-Proxmox networking.
 
 ```sh
-./scripts/physical deploy
+./bin/physical deploy
 ```
 
 ## Provision the k3s cluster
@@ -52,7 +52,7 @@ Plan and apply. In tests, it took ~11m to create a 6 node cluster (3 control + 3
 The Terraform provisioners are particularly flaky on the Proxmox engine. There is an Ansible playbook for spinning up K3s, MetalLB and Kube-VIP to give a single virtual IP for the HA control-plane.
 
 ```sh
-./scripts/cluster deploy
+./bin/cluster deploy
 ```
 
 Additional commands in the `cluster` command, via playbooks, are `reset` and `reboot`.
@@ -62,7 +62,7 @@ Additional commands in the `cluster` command, via playbooks, are `reset` and `re
 Copy the kubectl config from a server node so you can access the cluster from your local machine:
 
 ```sh
-./scripts/get-kubeconfig
+./bin/get-kubeconfig
 kubectl config use-context config-k3s
 kubectl get nodes -o wide
 kubectl get pods --all-namespaces
@@ -109,7 +109,7 @@ In order for Terraform to properly request an access key for cert-manager, we al
 Once the AWS user is available, the remainder of the provisioning is a single command:
 
 ```sh
-./scripts/services deploy
+./bin/services deploy
 ```
 
 ## Destroying the cluster
@@ -117,7 +117,7 @@ Once the AWS user is available, the remainder of the provisioning is a single co
 In tests, it took ~2m to destroy a 6 node cluster (3 control + 3 worker), but of course this varies based on hardware and network.
 
 ```sh
-./scripts/physical reset
+./bin/physical reset
 ```
 
 ## Docs

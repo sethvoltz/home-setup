@@ -42,10 +42,10 @@ resource "helm_release" "grafana" {
         - name: Prometheus
           type: prometheus
           url: http://thanos-query-frontend.thanos.svc:9090
-        - name: Loki
-          type: loki
-          url: http://loki-read.loki.svc:3100
-          is_default: true
+        # - name: Loki
+        #   type: loki
+        #   url: http://loki-read.loki.svc:3100
+        #   is_default: true
         # - name: CloudWatch
         #   type: cloudwatch
         #   jsonData:
