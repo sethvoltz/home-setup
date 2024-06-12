@@ -28,7 +28,7 @@ resource "helm_release" "kube-prometheus-stack" {
   namespace  = kubernetes_namespace.monitoring.id
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "kube-prometheus-stack"
-  version    = "46.8.0"
+  version    = "60.1.0"
 
   values = [
     templatefile("${path.module}/templates/alertmanager-values.yml.tpl", {
