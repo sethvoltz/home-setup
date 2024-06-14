@@ -51,7 +51,8 @@ resource "helm_release" "traefik" {
     ports:
       web:
         port: 80
-        redirectTo: websecure
+        redirectTo:
+          port: websecure
       websecure:
         port: 443
         tls:
@@ -93,7 +94,7 @@ resource "helm_release" "traefik" {
 resource "kubectl_manifest" "traefik_middleware_default_headers" {
   depends_on       = [helm_release.traefik]
   yaml_body        = <<-END_OF_FILE
-    apiVersion: traefik.containo.us/v1alpha1
+    apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
       name: default-headers
@@ -115,7 +116,7 @@ resource "kubectl_manifest" "traefik_middleware_default_headers" {
 resource "kubectl_manifest" "traefik_middleware_basicauth" {
   depends_on       = [helm_release.traefik]
   yaml_body        = <<-END_OF_FILE
-    apiVersion: traefik.containo.us/v1alpha1
+    apiVersion: traefik.io/v1alpha1
     kind: Middleware
     metadata:
       name: traefik-dashboard-basicauth
@@ -144,7 +145,7 @@ resource "kubectl_manifest" "traefik_dashboard_auth" {
 resource "kubectl_manifest" "traefik_ingress" {
   depends_on       = [kubectl_manifest.traefik_dashboard_auth]
   yaml_body        = <<-END_OF_FILE
-    apiVersion: traefik.containo.us/v1alpha1
+    apiVersion: traefik.io/v1alpha1
     kind: IngressRoute
     metadata:
       name: traefik-dashboard
