@@ -30,7 +30,7 @@ resource "helm_release" "thanos" {
   namespace  = kubernetes_namespace.thanos.id
   repository = "https://charts.bitnami.com/bitnami"
   chart      = "thanos"
-  version    = "15.7.12"
+  version    = "15.7.15"
 
   values = [<<-EOD
     # image:
