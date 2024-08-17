@@ -22,7 +22,7 @@ resource "helm_release" "grafana" {
   namespace  = kubernetes_namespace.grafana.id
   repository = "https://grafana.github.io/helm-charts"
   chart      = "grafana"
-  version    = "8.3.6"
+  version    = "8.4.5"
 
   values = [<<-EOD
     admin:
