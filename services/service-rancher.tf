@@ -10,7 +10,7 @@ resource "helm_release" "rancher" {
   name       = "rancher"
   chart      = "rancher"
   repository = "https://releases.rancher.com/server-charts/latest"
-  version    = "2.9.3"
+  version    = "2.10.0"
   wait       = true
 
   values = [<<-END_OF_FILE
