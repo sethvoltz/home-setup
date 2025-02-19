@@ -28,7 +28,7 @@ resource "helm_release" "traefik" {
   name       = "traefik"
   chart      = "traefik"
   repository = "https://helm.traefik.io/traefik"
-  version    = "32.1.1"
+  version    = "34.4.0"
   depends_on = [helm_release.cert-manager]
 
   values = [<<-END_OF_FILE
